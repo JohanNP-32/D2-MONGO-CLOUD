@@ -1,61 +1,57 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors'); // Opcional, pero bueno para evitar errores
-const User = require('./models/user'); // Importamos el modelo que acabamos de crear
+const cors = require('cors');
+const User = require('./models/user'); // Importamos el modelo
 const app = express();
 
-// --- Middlewares ---
-app.use(express.json()); // Importante: Permite que el servidor entienda JSON
+app.use(express.json());
 app.use(cors());
-app.use(express.static('public')); // Para mostrar tu página web (frontend)
+app.use(express.static('public'));
 
-// --- Conexión a MongoDB ---
-// Asegúrate de tener MONGO_URI en tus variables de entorno de Vercel
+// --- Conexión y Creación del Usuario Predeterminado ---
 const mongoUri = process.env.MONGO_URI;
 
 if (!mongoUri) {
     console.error("Falta la variable MONGO_URI");
 } else {
     mongoose.connect(mongoUri)
-        .then(() => console.log('Conectado a MongoDB'))
+        .then(async () => {
+            console.log('Conectado a MongoDB');
+            
+            // --- AQUÍ ESTÁ LA MAGIA ---
+            // Revisamos si ya existe el usuario predeterminado
+            const usuarioExistente = await User.findOne({ email: "juan@ejemplo.com" });
+            
+            if (!usuarioExistente) {
+                // Si no existe, lo creamos
+                await User.create({
+                    nombre: "Juan Pérez (Predeterminado)",
+                    email: "juan@ejemplo.com"
+                });
+                console.log("Usuario predeterminado creado con éxito.");
+            } else {
+                console.log("El usuario predeterminado ya existía.");
+            }
+            // ---------------------------
+        })
         .catch(err => console.error('Error de conexión:', err));
 }
 
-// --- API 1: CREAR USUARIO (POST) ---
-app.post('/api/users', async (req, res) => {
-    try {
-        const { nombre, email } = req.body;
-        
-        // Crear nueva instancia del modelo
-        const nuevoUsuario = new User({ nombre, email });
-        
-        // Guardar en base de datos
-        await nuevoUsuario.save();
-        
-        res.status(201).json({ message: "Usuario creado con éxito", user: nuevoUsuario });
-    } catch (error) {
-        res.status(500).json({ error: "Error al crear usuario", detalles: error.message });
-    }
-});
-
-// --- API 2: MOSTRAR USUARIOS (GET) ---
+// --- API: MOSTRAR USUARIOS (GET) ---
 app.get('/api/users', async (req, res) => {
     try {
-        // Buscar todos los usuarios en la BD
         const usuarios = await User.find();
-        
         res.status(200).json(usuarios);
     } catch (error) {
         res.status(500).json({ error: "Error al obtener usuarios" });
     }
 });
 
-// --- Ruta base para servir el Frontend ---
+// --- Ruta base ---
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-// --- Exportar para Vercel ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
 
