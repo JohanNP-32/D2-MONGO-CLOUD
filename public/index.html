@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongo API Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      input {
+        padding: 8px;
+        margin: 5px 0;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #0070f3;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #0051a2;
+      }
+      .card {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+      }
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      li {
+        background: #f9f9f9;
+        border-bottom: 1px solid #eee;
+        padding: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Panel de Usuarios</h1>
+
+    <div class="card">
+      <h2>Crear Nuevo Usuario</h2>
+      <input type="text" id="nombreInput" placeholder="Nombre del usuario" />
+      <input type="email" id="emailInput" placeholder="Correo electrónico" />
+      <button onclick="crearUsuario()">Guardar en Mongo</button>
+    </div>
+
+    <div class="card">
+      <h2>Lista de Usuarios</h2>
+      <p>Presiona el botón para consultar la base de datos.</p>
+      <button onclick="obtenerUsuarios()">Get Users</button>
+
+      <ul id="listaUsuarios"></ul>
+    </div>
+
+    <script>
+      // Función para llamar a la API POST
+      async function crearUsuario() {
+        const nombre = document.getElementById("nombreInput").value;
+        const email = document.getElementById("emailInput").value;
+
+        if (!nombre || !email) return alert("Llena ambos campos");
+
+        const respuesta = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre, email }),
+        });
+
+        const datos = await respuesta.json();
+
+        if (respuesta.ok) {
+          alert("Usuario creado: " + datos.user.nombre);
+          document.getElementById("nombreInput").value = "";
+          document.getElementById("emailInput").value = "";
+          // Opcional: recargar la lista automáticamente
+          // obtenerUsuarios();
+        } else {
+          alert("Error: " + datos.error);
+        }
+      }
+
+      // Función para llamar a la API GET
+      async function obtenerUsuarios() {
+        const respuesta = await fetch("/api/users"); // Por defecto es GET
+        const usuarios = await respuesta.json();
+
+        const lista = document.getElementById("listaUsuarios");
+        lista.innerHTML = ""; // Limpiar lista actual
+
+        if (usuarios.length === 0) {
+          lista.innerHTML = "<li>No hay usuarios registrados aún.</li>";
+          return;
+        }
+
+        usuarios.forEach((user) => {
+          const item = document.createElement("li");
+          item.textContent = `👤 ${user.nombre} (${user.email})`;
+          lista.appendChild(item);
+        });
+      }
+    </script>
+  </body>
+</html>
