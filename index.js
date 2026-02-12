@@ -1,58 +1,56 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
+const connectDB = require('./db');
 const User = require('./models/user'); // Importamos el modelo
+
 const app = express();
+const PORT = process.env.PORT || 5000;
+
+connectDB();
 
 app.use(express.json());
-app.use(cors());
-app.use(express.static('public'));
 
-// --- Conexión y Creación del Usuario Predeterminado ---
-const mongoUri = process.env.MONGO_URI;
+// --- API ROUTES ---
 
-if (!mongoUri) {
-    console.error("Falta la variable MONGO_URI");
-} else {
-    mongoose.connect(mongoUri)
-        .then(async () => {
-            console.log('Conectado a MongoDB');
-            
-            // --- AQUÍ ESTÁ LA MAGIA ---
-            // Revisamos si ya existe el usuario predeterminado
-            const usuarioExistente = await User.findOne({ email: "juan@ejemplo.com" });
-            
-            if (!usuarioExistente) {
-                // Si no existe, lo creamos
-                await User.create({
-                    nombre: "Juan Pérez (Predeterminado)",
-                    email: "juan@ejemplo.com"
-                });
-                console.log("Usuario predeterminado creado con éxito.");
-            } else {
-                console.log("El usuario predeterminado ya existía.");
-            }
-            // ---------------------------
-        })
-        .catch(err => console.error('Error de conexión:', err));
-}
-
-// --- API: MOSTRAR USUARIOS (GET) ---
-app.get('/api/users', async (req, res) => {
+// 1. POST: Crear un nuevo usuario
+app.post('/api/users', async (req, res) => {
     try {
-        const usuarios = await User.find();
-        res.status(200).json(usuarios);
+        const { nombre, email } = req.body;
+        const newUser = new User({ nombre, email });
+        await newUser.save();
+        res.status(201).json({ message: 'Usuario creado', user: newUser });
     } catch (error) {
-        res.status(500).json({ error: "Error al obtener usuarios" });
+        res.status(400).json({ error: error.message });
     }
 });
 
-// --- Ruta base ---
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
+// 2. GET: Obtener todos los usuarios (El "Select")
+app.get('/api/users', async (req, res) => {
+    try {
+        const users = await User.find();
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server ready on port ${PORT}`));
+// Ruta principal con un botón básico para probar el GET
+app.get('/', (req, res) => {
+    res.send(`
+        <h1>API MongoDB Atlas</h1>
+        <button onclick="fetchUsers()">Obtener Usuarios (GET USER)</button>
+        <div id="lista"></div>
+        <script>
+            async function fetchUsers() {
+                const res = await fetch('/api/users');
+                const data = await res.json();
+                document.getElementById('lista').innerText = JSON.stringify(data, null, 2);
+            }
+        </script>
+    `);
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;
